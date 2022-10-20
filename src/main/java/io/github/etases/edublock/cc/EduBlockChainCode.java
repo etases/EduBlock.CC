@@ -13,6 +13,8 @@ import org.hyperledger.fabric.contract.annotation.Transaction;
 import org.hyperledger.fabric.shim.ChaincodeException;
 import org.hyperledger.fabric.shim.ChaincodeStub;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Optional;
 
 @Contract(name = "EduBlockChainCode",
@@ -29,21 +31,14 @@ import java.util.Optional;
 @Default
 public class EduBlockChainCode implements ContractInterface {
 
-    private enum AssetTransferErrors {
-        ASSET_NOT_FOUND,
-        ASSET_ALREADY_EXISTS,
-        ASSET_INVALID
-    }
-
     /**
-     * Get Student by Id
+     * Get Student by id
      *
      * @param ctx       the transaction context
      * @param studentId the student id
      * @return student or null if not found
      */
-    @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public Student getStudent(final Context ctx, final int studentId) {
+    private Student getStudentOrNull(final Context ctx, final int studentId) {
         ChaincodeStub stub = ctx.getStub();
         String assetJSON = stub.getStringState(Integer.toString(studentId));
 
@@ -52,6 +47,24 @@ public class EduBlockChainCode implements ContractInterface {
         }
 
         return JsonUtil.deserialize(assetJSON, Student.class);
+    }
+
+    /**
+     * Get Student by id
+     *
+     * @param ctx       the transaction context
+     * @param studentId the student id
+     * @return student or exception if not found
+     */
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public Student getStudent(final Context ctx, final int studentId) {
+        Student student = getStudentOrNull(ctx, studentId);
+        if (student == null) {
+            String errorMessage = String.format("Student %s does not exist", studentId);
+            System.out.println(errorMessage);
+            throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_NOT_FOUND.toString());
+        }
+        return student;
     }
 
     /**
@@ -70,7 +83,6 @@ public class EduBlockChainCode implements ContractInterface {
                 .orElse(null);
     }
 
-
     /**
      * Check is Student exists by Id
      *
@@ -83,22 +95,27 @@ public class EduBlockChainCode implements ContractInterface {
         return getStudent(ctx, studentId) != null;
     }
 
-
     /**
      * Create Student
      *
-     * @param ctx        the transaction context
-     * @param jsonString the JsonString of Student object
+     * @param ctx the transaction context with the transient map including the "student" object
      * @return student or exception
      */
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Student createStudent(final Context ctx, String jsonString) {
+    public Student createStudent(final Context ctx) {
         ChaincodeStub stub = ctx.getStub();
+        Map<String, byte[]> transientMap = stub.getTransient();
+        if (!transientMap.containsKey("student")) {
+            String errorMessage = "The transient map is missing \"student\"";
+            System.out.println(errorMessage);
+            throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_INVALID.name());
+        }
+        String studentJson = new String(transientMap.get("student"), StandardCharsets.UTF_8);
         Student student;
         try {
-            student = JsonUtil.deserialize(jsonString, Student.class);
+            student = JsonUtil.deserialize(studentJson, Student.class);
         } catch (Exception exception) {
-            String errorMessage = String.format("Invalid input: %s", jsonString);
+            String errorMessage = String.format("Invalid input: %s", studentJson);
             System.out.println(errorMessage);
             throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_INVALID.name());
         }
@@ -108,25 +125,33 @@ public class EduBlockChainCode implements ContractInterface {
             System.out.println(errorMessage);
             throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_ALREADY_EXISTS.name());
         }
-        stub.putStringState(Integer.toString(student.getId()), jsonString);
+        stub.putStringState(Integer.toString(student.getId()), studentJson);
         return student;
     }
 
     /**
      * Update Student's Personal
      *
-     * @param ctx        the transaction context
-     * @param studentId  the Student's id
-     * @param jsonString the JsonString of Student's Personal object
+     * @param ctx       the transaction context with the transient map including the "personal" object
+     * @param studentId the Student's id
      * @return student or exception
      */
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Student updateStudentPersonal(final Context ctx, int studentId, String jsonString) {
+    public Student updateStudentPersonal(final Context ctx, int studentId) {
+        ChaincodeStub stub = ctx.getStub();
+        Map<String, byte[]> transientMap = stub.getTransient();
+        if (!transientMap.containsKey("personal")) {
+            String errorMessage = "The transient map is missing \"personal\"";
+            System.out.println(errorMessage);
+            throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_INVALID.name());
+        }
+
+        String personalJson = new String(transientMap.get("personal"), StandardCharsets.UTF_8);
         Personal personal;
         try {
-            personal = JsonUtil.deserialize(jsonString, Personal.class);
+            personal = JsonUtil.deserialize(personalJson, Personal.class);
         } catch (Exception exception) {
-            String errorMessage = String.format("Invalid input: %s", jsonString);
+            String errorMessage = String.format("Invalid input: %s", personalJson);
             System.out.println(errorMessage);
             throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_INVALID.name());
         }
@@ -145,19 +170,27 @@ public class EduBlockChainCode implements ContractInterface {
     /**
      * Update Student's Record
      *
-     * @param ctx        the transaction context
-     * @param studentId  the Student's id
-     * @param grade      the Student Record's grade
-     * @param jsonString the JsonString of Student's Record object
+     * @param ctx       the transaction context with the transient map including the "record" object
+     * @param studentId the Student's id
+     * @param grade     the Student Record's grade
      * @return student or exception
      */
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Student updateStudentRecord(final Context ctx, int studentId, int grade, String jsonString) {
+    public Student updateStudentRecord(final Context ctx, int studentId, int grade) {
+        ChaincodeStub stub = ctx.getStub();
+        Map<String, byte[]> transientMap = stub.getTransient();
+        if (!transientMap.containsKey("record")) {
+            String errorMessage = "The transient map is missing \"record\"";
+            System.out.println(errorMessage);
+            throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_INVALID.name());
+        }
+
+        String recordJson = new String(transientMap.get("record"), StandardCharsets.UTF_8);
         Record record;
         try {
-            record = JsonUtil.deserialize(jsonString, Record.class);
+            record = JsonUtil.deserialize(recordJson, Record.class);
         } catch (Exception exception) {
-            String errorMessage = String.format("Invalid input: %s", jsonString);
+            String errorMessage = String.format("Invalid input: %s", recordJson);
             System.out.println(errorMessage);
             throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_INVALID.name());
         }
@@ -187,5 +220,11 @@ public class EduBlockChainCode implements ContractInterface {
         }
         stub.putStringState(Integer.toString(student.getId()), JsonUtil.serialize(student));
         return student;
+    }
+
+    private enum AssetTransferErrors {
+        ASSET_NOT_FOUND,
+        ASSET_ALREADY_EXISTS,
+        ASSET_INVALID
     }
 }
