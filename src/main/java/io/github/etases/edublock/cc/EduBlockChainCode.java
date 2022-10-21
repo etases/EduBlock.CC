@@ -30,6 +30,16 @@ import java.util.Optional;
         ))
 @Default
 public class EduBlockChainCode implements ContractInterface {
+    /**
+     * Init the ledger
+     *
+     * @param context the transaction context
+     * @return the response
+     */
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public String init(final Context context) {
+        return "EduBlockChainCode";
+    }
 
     /**
      * Get Student by id
