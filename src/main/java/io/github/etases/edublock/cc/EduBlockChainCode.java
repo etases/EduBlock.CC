@@ -21,23 +21,17 @@ import java.util.Optional;
         info = @Info(title = "EduBlock contract",
                 description = "A contract to store & modify student records",
                 version = "0.0.1"
-//                license =
-//                @License(name = "SPDX-License-Identifier: Apache-2.0",
-//                        url = ""),
-//                contact =  @Contact(email = "MyAssetContract@example.com",
-//                        name = "MyAssetContract",
-//                        url = "http://MyAssetContract.me")
         ))
 @Default
 public class EduBlockChainCode implements ContractInterface {
     /**
      * Init the ledger
      *
-     * @param context the transaction context
+     * @param ctx the transaction context
      * @return the response
      */
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public String init(final Context context) {
+    public String init(final Context ctx) {
         return "EduBlockChainCode";
     }
 
@@ -50,7 +44,7 @@ public class EduBlockChainCode implements ContractInterface {
      */
     private Student getStudentOrNull(final Context ctx, final int studentId) {
         ChaincodeStub stub = ctx.getStub();
-        String assetJSON = stub.getStringState(Integer.toString(studentId));
+        String assetJSON = stub.getPrivateDataUTF8(getCollectionName(ctx), Integer.toString(studentId));
 
         if (assetJSON == null || assetJSON.isEmpty()) {
             return null;
@@ -135,7 +129,7 @@ public class EduBlockChainCode implements ContractInterface {
             System.out.println(errorMessage);
             throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_ALREADY_EXISTS.name());
         }
-        stub.putStringState(Integer.toString(student.getId()), studentJson);
+        stub.putPrivateData(getCollectionName(ctx), Integer.toString(student.getId()), studentJson);
         return student;
     }
 
@@ -228,8 +222,13 @@ public class EduBlockChainCode implements ContractInterface {
             System.out.println(errorMessage);
             throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_NOT_FOUND.name());
         }
-        stub.putStringState(Integer.toString(student.getId()), JsonUtil.serialize(student));
+        stub.putPrivateData(getCollectionName(ctx), Integer.toString(student.getId()), JsonUtil.serialize(student));
         return student;
+    }
+
+    private String getCollectionName(Context ctx) {
+        // TODO: specify collection config
+        return "_implicit_org_" + ctx.getClientIdentity().getMSPID();
     }
 
     private enum AssetTransferErrors {
