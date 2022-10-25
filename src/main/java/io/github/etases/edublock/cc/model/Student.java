@@ -19,5 +19,5 @@ public class Student {
     @Property
     Personal personal;
     @Property
-    Map<Integer, Record> record;
+    Map<Integer, Record> record; // key : record id (class id)
 }

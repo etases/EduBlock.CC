@@ -17,9 +17,11 @@ public class Record {
     @Property
     int year;
     @Property
+    int grade;
+    @Property
     String className;
     @Property
-    Map<Integer, Subject> subject;
+    Map<Integer, Subject> subject; // key : subject id
     @Property
     Classification classification;
 }

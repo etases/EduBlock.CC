@@ -76,14 +76,14 @@ public class EduBlockChainCode implements ContractInterface {
      *
      * @param ctx       the transaction context
      * @param studentId the student id
-     * @param grade     the Student Record's grade
+     * @param classId   the Student Record's class id
      * @return student or null if not found
      */
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public Record getRecord(final Context ctx, final int studentId, final int grade) {
+    public Record getRecord(final Context ctx, final int studentId, final int classId) {
         return Optional.ofNullable(getStudent(ctx, studentId))
                 .map(Student::getRecord)
-                .map(record -> record.get(grade))
+                .map(record -> record.get(classId))
                 .orElse(null);
     }
 
@@ -176,11 +176,11 @@ public class EduBlockChainCode implements ContractInterface {
      *
      * @param ctx       the transaction context with the transient map including the "record" object
      * @param studentId the Student's id
-     * @param grade     the Student Record's grade
+     * @param classId   the Student Record's class id
      * @return student or exception
      */
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Student updateStudentRecord(final Context ctx, int studentId, int grade) {
+    public Student updateStudentRecord(final Context ctx, int studentId, int classId) {
         ChaincodeStub stub = ctx.getStub();
         Map<String, byte[]> transientMap = stub.getTransient();
         if (!transientMap.containsKey("record")) {
@@ -205,13 +205,13 @@ public class EduBlockChainCode implements ContractInterface {
             System.out.println(errorMessage);
             throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_NOT_FOUND.name());
         }
-        if (!student.getRecord().containsKey(grade)) {
-            String errorMessage = String.format("Student %d does not have record grade %d", studentId, grade);
+        if (!student.getRecord().containsKey(classId)) {
+            String errorMessage = String.format("Student %d does not have record classId %d", studentId, classId);
             System.out.println(errorMessage);
             throw new ChaincodeException(errorMessage, AssetTransferErrors.ASSET_NOT_FOUND.name());
         }
 
-        student.getRecord().put(grade, record);
+        student.getRecord().put(classId, record);
         return updateStudent(ctx, student);
     }
 
