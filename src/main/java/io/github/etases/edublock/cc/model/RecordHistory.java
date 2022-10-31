@@ -5,7 +5,7 @@ import lombok.experimental.FieldDefaults;
 import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
 
-import java.util.Map;
+import java.util.Date;
 
 @Getter
 @Setter
@@ -13,11 +13,11 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @DataType
-public class Student {
+public class RecordHistory {
     @Property
-    int id;
+    Date timestamp;
     @Property
-    Personal personal;
+    Record record;
     @Property
-    Map<Integer, Record> record; // key : record id (class id)
+    String updatedBy;
 }

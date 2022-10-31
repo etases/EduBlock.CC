@@ -15,9 +15,13 @@ public class Subject {
     @Property
     String name;
     @Property
-    float firstHaftScore;
+    float firstHalfScore;
     @Property
-    float secondHaftScore;
+    float secondHalfScore;
     @Property
     float finalScore;
+
+    public static Subject clone(Subject subject) {
+        return subject == null ? new Subject() : new Subject(subject.getName(), subject.getFirstHalfScore(), subject.getSecondHalfScore(), subject.getFinalScore());
+    }
 }

@@ -1,6 +1,5 @@
 package io.github.etases.edublock.cc.util;
 
-import io.github.etases.edublock.cc.model.Classification;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

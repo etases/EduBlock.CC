@@ -14,9 +14,13 @@ import org.hyperledger.fabric.contract.annotation.Property;
 @DataType
 public class Classification {
     @Property
-    String firstHaftClassify;
+    String firstHalfClassify;
     @Property
-    String secondHaftClassify;
+    String secondHalfClassify;
     @Property
     String finalClassify;
+
+    public static Classification clone(Classification classification) {
+        return classification == null ? new Classification() : new Classification(classification.getFirstHalfClassify(), classification.getSecondHalfClassify(), classification.getFinalClassify());
+    }
 }
