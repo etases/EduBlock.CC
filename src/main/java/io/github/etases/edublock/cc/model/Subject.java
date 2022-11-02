@@ -10,6 +10,7 @@ import org.hyperledger.fabric.contract.annotation.Property;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode
 @DataType
 public class Subject {
     @Property

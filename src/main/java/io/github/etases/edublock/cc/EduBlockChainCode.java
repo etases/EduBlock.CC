@@ -145,22 +145,22 @@ public class EduBlockChainCode implements ContractInterface {
         return new RecordHistoryList(histories);
     }
 
-    private String getCollectionName(Context ctx) {
+     String getCollectionName(Context ctx) {
         // TODO: specify collection config
         return "_implicit_org_" + ctx.getClientIdentity().getMSPID();
     }
 
-    private String composePublicKey(Context ctx, String key) {
+     String composePublicKey(Context ctx, String key) {
         return ctx.getClientIdentity().getMSPID() + "_" + key;
     }
 
-    private <T> T getValueFromTransientMap(final Context ctx, String transientKey, Class<T> clazz) {
+     <T> T getValueFromTransientMap(final Context ctx, String transientKey, Class<T> clazz) {
         ChaincodeStub stub = ctx.getStub();
         Map<String, byte[]> transientMap = stub.getTransient();
         if (!transientMap.containsKey(transientKey)) {
             String errorMessage = "The transient map is missing \"" + transientKey + "\"";
             System.out.println(errorMessage);
-            throw new ChaincodeException(errorMessage, AssetErrors.ASSET_INVALID.name());
+            throw new ChaincodeException(errorMessage, AssetErrors.ASSET_NOT_FOUND.name());
         }
 
         String json = new String(transientMap.get(transientKey), StandardCharsets.UTF_8);
@@ -175,7 +175,7 @@ public class EduBlockChainCode implements ContractInterface {
         return t;
     }
 
-    private enum AssetErrors {
+     enum AssetErrors {
         ASSET_NOT_FOUND,
         ASSET_ALREADY_EXISTS,
         ASSET_INVALID

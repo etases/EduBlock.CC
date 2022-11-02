@@ -1,5 +1,6 @@
 package io.github.etases.edublock.cc.util;
 
+import io.github.etases.edublock.cc.model.Classification;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -8,10 +9,10 @@ class JsonUtilTest {
 
     @Test
     void deserialize() {
-        String jsonString = "{\"firstHaftClassify\":\"Good\",\"secondHaftClassify\":\"Bad\"}";
+        String jsonString = "{\"firstHalfClassify\":\"Good\",\"secondHalfClassify\":\"Bad\"}";
         Classification classification = JsonUtil.deserialize(jsonString, Classification.class);
-        assertEquals("Good", classification.getFirstHaftClassify());
-        assertEquals("Bad", classification.getSecondHaftClassify());
+        assertEquals("Good", classification.getFirstHalfClassify());
+        assertEquals("Bad", classification.getSecondHalfClassify());
         assertNull(classification.getFinalClassify());
     }
 
