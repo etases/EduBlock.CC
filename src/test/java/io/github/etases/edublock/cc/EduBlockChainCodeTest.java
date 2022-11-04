@@ -17,8 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class EduBlockChainCodeTest {
@@ -382,7 +381,7 @@ class EduBlockChainCodeTest {
             }
 
             @Override
-            public void close() throws Exception {
+            public void close() {
                 // EMPTY
             }
 
@@ -427,6 +426,25 @@ class EduBlockChainCodeTest {
             RecordHistoryList recordHistoryListOutput = contract.getStudentRecordHistory(ctx, studentIdInput);
 
             assertEquals(recordHistoryList, recordHistoryListOutput);
+        }
+
+        @Test
+        void getStudentRecordHistoryEmpty() {
+            EduBlockChainCode contract = new EduBlockChainCode();
+            Context ctx = mock(Context.class);
+            ClientIdentity client = mock(ClientIdentity.class);
+            ChaincodeStub stub = mock(ChaincodeStub.class);
+            when(ctx.getStub()).thenReturn(stub);
+            when(ctx.getClientIdentity()).thenReturn(client);
+            when(client.getMSPID()).thenReturn("TestOrg");
+
+            long studentIdInput = 0;
+            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
+            when(stub.getHistoryForKey(publicKey)).thenReturn(new MockKeyModificationResultsIterator(Collections.emptyList()));
+
+            RecordHistoryList recordHistoryListOutput = contract.getStudentRecordHistory(ctx, studentIdInput);
+
+            assertTrue(recordHistoryListOutput.getHistories().isEmpty());
         }
     }
 }
