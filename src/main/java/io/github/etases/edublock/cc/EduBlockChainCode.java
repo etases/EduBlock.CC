@@ -115,7 +115,7 @@ public class EduBlockChainCode implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void updateStudentClassRecord(final Context ctx, final long studentId, final long classId) {
         ChaincodeStub stub = ctx.getStub();
-        ClassRecord record = getValueFromTransientMap(ctx, "record", ClassRecord.class);
+        ClassRecord record = getValueFromTransientMap(ctx, "classRecord", ClassRecord.class);
         Record studentRecord = getStudentRecord(ctx, studentId);
         Record newRecord = Record.clone(studentRecord);
         newRecord.getClassRecords().put(classId, record);
