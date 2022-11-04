@@ -175,22 +175,22 @@ class EduBlockChainCodeTest {
             when(client.getMSPID()).thenReturn("TestOrg");
 
 
-
-            ClassRecord classrecord =new ClassRecord();
+            ClassRecord classrecord = new ClassRecord();
             classrecord.setYear(2020);
             Record record = new Record();
-            Map<Long, ClassRecord> classRecordsMap= new HashMap<>();
-            long classIdInput=0;
-            classRecordsMap.put(classIdInput,classrecord);
+            Map<Long, ClassRecord> classRecordsMap = new HashMap<>();
+            long classIdInput = 0;
+            classRecordsMap.put(classIdInput, classrecord);
             record.setClassRecords(classRecordsMap);
             String recordSerialized = JsonUtil.serialize(record);
             long studentIdInput = 0;
-            when(stub.getStringState(contract.composePublicKey(ctx,Long.toString(studentIdInput)))).thenReturn(recordSerialized);
+            when(stub.getStringState(contract.composePublicKey(ctx, Long.toString(studentIdInput)))).thenReturn(recordSerialized);
 
             Record recordOutput = contract.getStudentRecord(ctx, studentIdInput);
 
             assertEquals(record, recordOutput);
         }
+
         @Test
         public void getStudentRecordIsNull() {
             EduBlockChainCode contract = new EduBlockChainCode();
@@ -203,7 +203,7 @@ class EduBlockChainCodeTest {
 
             long studentIdInput = 0;
 
-            when(stub.getStringState(contract.composePublicKey(ctx,Long.toString(studentIdInput)))).thenReturn(null);
+            when(stub.getStringState(contract.composePublicKey(ctx, Long.toString(studentIdInput)))).thenReturn(null);
             ChaincodeException chaincodeException = ThrowableAssert.catchThrowableOfType(() -> {
                 contract.getStudentRecord(ctx, studentIdInput);
             }, ChaincodeException.class);
@@ -211,6 +211,7 @@ class EduBlockChainCodeTest {
             assertArrayEquals(EduBlockChainCode.AssetErrors.ASSET_NOT_FOUND.name().getBytes(), chaincodeException.getPayload());
 
         }
+
         @Test
         public void updateStudentRecord() {
             EduBlockChainCode contract = new EduBlockChainCode();
@@ -224,12 +225,12 @@ class EduBlockChainCodeTest {
             Map<String, byte[]> transientMap = new HashMap<>();
             when(stub.getTransient()).thenReturn(transientMap);
 
-            ClassRecord classRecord =new ClassRecord();
+            ClassRecord classRecord = new ClassRecord();
             classRecord.setYear(2020);
             Record record = new Record();
-            long classIdInput=0;
-            Map<Long, ClassRecord> classRecordsMap= new HashMap<>();
-            classRecordsMap.put(classIdInput,classRecord);
+            long classIdInput = 0;
+            Map<Long, ClassRecord> classRecordsMap = new HashMap<>();
+            classRecordsMap.put(classIdInput, classRecord);
             record.setClassRecords(classRecordsMap);
 
             String recordSerialized = JsonUtil.serialize(record);
@@ -239,7 +240,7 @@ class EduBlockChainCodeTest {
             long studentIdInput = 0;
             contract.updateStudentRecord(ctx, studentIdInput);
 
-            verify(stub).putStringState(contract.composePublicKey(ctx,Long.toString(studentIdInput)),recordSerialized);
+            verify(stub).putStringState(contract.composePublicKey(ctx, Long.toString(studentIdInput)), recordSerialized);
         }
 
         @Test
@@ -255,31 +256,31 @@ class EduBlockChainCodeTest {
             Map<String, byte[]> transientMap = new HashMap<>();
             when(stub.getTransient()).thenReturn(transientMap);
 
-            ClassRecord oldClassRecord =new ClassRecord();
+            ClassRecord oldClassRecord = new ClassRecord();
             oldClassRecord.setYear(2020);
             Record record = new Record();
-            long oldClassIdInput=0;
-            Map<Long, ClassRecord> classRecordsMap= new HashMap<>();
-            classRecordsMap.put(oldClassIdInput,oldClassRecord);
+            long oldClassIdInput = 0;
+            Map<Long, ClassRecord> classRecordsMap = new HashMap<>();
+            classRecordsMap.put(oldClassIdInput, oldClassRecord);
             record.setClassRecords(classRecordsMap);
             String recordSerialized = JsonUtil.serialize(record);
             long studentIdInput = 0;
-            when(stub.getStringState(contract.composePublicKey(ctx,Long.toString(studentIdInput)))).thenReturn(recordSerialized);
+            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
+            when(stub.getStringState(publicKey)).thenReturn(recordSerialized);
 
-            ClassRecord newClassRecord =new ClassRecord();
+            ClassRecord newClassRecord = new ClassRecord();
             newClassRecord.setYear(2021);
             String classRecordSerialized = JsonUtil.serialize(newClassRecord);
             String transientKey = "classRecord";
             transientMap.put(transientKey, classRecordSerialized.getBytes(StandardCharsets.UTF_8));
-            Record newRecord = contract.getStudentRecord(ctx, studentIdInput);
-            long classIdInput=1;
+
+            Record newRecord = Record.clone(record);
+            long classIdInput = 1;
             newRecord.getClassRecords().put(classIdInput, newClassRecord);
 
             String newRecordSerialized = JsonUtil.serialize(newRecord);
-            contract.updateStudentClassRecord(ctx, studentIdInput,classIdInput);
-            verify(stub).getStringState(contract.composePublicKey(ctx,Long.toString(studentIdInput)));
-            verify(stub).putStringState(contract.composePublicKey(ctx,Long.toString(studentIdInput)),newRecordSerialized);
-
+            contract.updateStudentClassRecord(ctx, studentIdInput, classIdInput);
+            verify(stub).putStringState(publicKey, newRecordSerialized);
         }
     }
 }
