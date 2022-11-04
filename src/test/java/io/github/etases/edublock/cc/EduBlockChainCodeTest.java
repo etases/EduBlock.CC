@@ -1,8 +1,6 @@
 package io.github.etases.edublock.cc;
 
-import io.github.etases.edublock.cc.model.ClassRecord;
-import io.github.etases.edublock.cc.model.Classification;
-import io.github.etases.edublock.cc.model.Personal;
+import io.github.etases.edublock.cc.model.*;
 import io.github.etases.edublock.cc.model.Record;
 import io.github.etases.edublock.cc.util.JsonUtil;
 import org.assertj.core.api.ThrowableAssert;
@@ -10,12 +8,14 @@ import org.hyperledger.fabric.contract.ClientIdentity;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.shim.ChaincodeException;
 import org.hyperledger.fabric.shim.ChaincodeStub;
+import org.hyperledger.fabric.shim.ledger.KeyModification;
+import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.Instant;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -316,6 +316,117 @@ class EduBlockChainCodeTest {
             contract.updateStudentClassRecord(ctx, studentIdInput, classIdInput);
 
             verify(stub).putStringState(publicKey, newRecordSerialized);
+        }
+    }
+
+    @Nested
+    class HistoryTest {
+        private final class MockKeyModification implements KeyModification {
+            private final String txId;
+            private final Instant timestamp;
+            private final String value;
+
+            private MockKeyModification(String txId, Instant timestamp, String value) {
+                this.txId = txId;
+                this.timestamp = timestamp;
+                this.value = value;
+            }
+
+            @Override
+            public String getTxId() {
+                return txId;
+            }
+
+            @Override
+            public byte[] getValue() {
+                return value.getBytes(StandardCharsets.UTF_8);
+            }
+
+            @Override
+            public String getStringValue() {
+                return value;
+            }
+
+            @Override
+            public Instant getTimestamp() {
+                return timestamp;
+            }
+
+            @Override
+            public boolean isDeleted() {
+                return false;
+            }
+        }
+
+        private final class MockKeyModificationResultsIterator implements QueryResultsIterator<KeyModification> {
+            private final List<KeyModification> list;
+
+            private MockKeyModificationResultsIterator(List<KeyModification> list) {
+                this.list = list;
+            }
+
+            private MockKeyModificationResultsIterator(Map<Instant, Record> recordMap) {
+                this.list = new ArrayList<>();
+                List<Map.Entry<Instant, Record>> entries = new ArrayList<>(recordMap.entrySet());
+                for (int i = 0; i < entries.size(); i++) {
+                    Map.Entry<Instant, Record> entry = entries.get(i);
+                    list.add(i, new MockKeyModification(Integer.toString(i), entry.getKey(), JsonUtil.serialize(entry.getValue())));
+                }
+            }
+
+            private MockKeyModificationResultsIterator(RecordHistoryList recordHistoryList) {
+                this.list = new ArrayList<>();
+                for (RecordHistory recordHistory : recordHistoryList.getHistories()) {
+                    list.add(new MockKeyModification(recordHistory.getUpdatedBy(), recordHistory.getTimestamp().toInstant(), JsonUtil.serialize(recordHistory.getRecord())));
+                }
+            }
+
+            @Override
+            public void close() throws Exception {
+                // EMPTY
+            }
+
+            @Override
+            public Iterator<KeyModification> iterator() {
+                return list.iterator();
+            }
+        }
+
+        @Test
+        void getStudentRecordHistory() {
+            EduBlockChainCode contract = new EduBlockChainCode();
+            Context ctx = mock(Context.class);
+            ClientIdentity client = mock(ClientIdentity.class);
+            ChaincodeStub stub = mock(ChaincodeStub.class);
+            when(ctx.getStub()).thenReturn(stub);
+            when(ctx.getClientIdentity()).thenReturn(client);
+            when(client.getMSPID()).thenReturn("TestOrg");
+
+            Record record1 = Record.clone(null);
+            ClassRecord classRecord1 = ClassRecord.clone(null);
+            classRecord1.setYear(2020);
+            record1.getClassRecords().put(0L, classRecord1);
+
+            Record record2 = Record.clone(null);
+            ClassRecord classRecord2 = ClassRecord.clone(null);
+            classRecord2.setYear(2021);
+            record2.getClassRecords().put(0L, classRecord1);
+            record2.getClassRecords().put(1L, classRecord2);
+
+            List<RecordHistory> recordHistories = new ArrayList<>();
+            recordHistories.add(new RecordHistory(Date.from(Instant.EPOCH), record1, "tx1"));
+            recordHistories.add(new RecordHistory(Date.from(Instant.ofEpochMilli(1000000)), record2, "tx2"));
+
+            RecordHistoryList recordHistoryList = new RecordHistoryList(recordHistories);
+            MockKeyModificationResultsIterator iterator = new MockKeyModificationResultsIterator(recordHistoryList);
+
+            long studentIdInput = 0;
+            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
+            when(stub.getHistoryForKey(publicKey)).thenReturn(iterator);
+
+            RecordHistoryList recordHistoryListOutput = contract.getStudentRecordHistory(ctx, studentIdInput);
+
+            assertEquals(recordHistoryList, recordHistoryListOutput);
         }
     }
 }
