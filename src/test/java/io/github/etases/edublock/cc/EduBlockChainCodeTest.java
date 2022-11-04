@@ -25,7 +25,7 @@ class EduBlockChainCodeTest {
     @Nested
     class TransientMapTest {
         @Test
-        public void getValueFromTransientMap() {
+        void getValueFromTransientMap() {
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
@@ -44,7 +44,7 @@ class EduBlockChainCodeTest {
         }
 
         @Test
-        public void getValueFromTransientMapNotFound() {
+        void getValueFromTransientMapNotFound() {
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
@@ -63,7 +63,7 @@ class EduBlockChainCodeTest {
         }
 
         @Test
-        public void getValueFromTransientMapInvalid() {
+        void getValueFromTransientMapInvalid() {
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
@@ -86,7 +86,7 @@ class EduBlockChainCodeTest {
     @Nested
     class PersonalTest {
         @Test
-        public void getStudentPersonal() {
+        void getStudentPersonal() {
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
@@ -110,7 +110,7 @@ class EduBlockChainCodeTest {
         }
 
         @Test
-        public void getStudentPersonalIsNull() {
+        void getStudentPersonalIsNull() {
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
@@ -132,7 +132,7 @@ class EduBlockChainCodeTest {
         }
 
         @Test
-        public void updateStudentPersonal() {
+        void updateStudentPersonal() {
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
@@ -165,7 +165,7 @@ class EduBlockChainCodeTest {
     @Nested
     class RecordTest {
         @Test
-        public void getStudentRecord() {
+        void getStudentRecord() {
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
@@ -192,7 +192,7 @@ class EduBlockChainCodeTest {
         }
 
         @Test
-        public void getStudentRecordIsNull() {
+        void getStudentRecordIsNull() {
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
@@ -213,7 +213,7 @@ class EduBlockChainCodeTest {
         }
 
         @Test
-        public void updateStudentRecord() {
+        void updateStudentRecord() {
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
@@ -244,7 +244,7 @@ class EduBlockChainCodeTest {
         }
 
         @Test
-        public void updateStudentClassRecord() {
+        void updateStudentClassRecord() {
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
@@ -278,9 +278,43 @@ class EduBlockChainCodeTest {
             Record newRecord = Record.clone(record);
             long classIdInput = 1;
             newRecord.getClassRecords().put(classIdInput, newClassRecord);
-
             String newRecordSerialized = JsonUtil.serialize(newRecord);
+
             contract.updateStudentClassRecord(ctx, studentIdInput, classIdInput);
+
+            verify(stub).putStringState(publicKey, newRecordSerialized);
+        }
+
+        @Test
+        void updateStudentClassRecordWhenNotExist() {
+            EduBlockChainCode contract = new EduBlockChainCode();
+            Context ctx = mock(Context.class);
+            ClientIdentity client = mock(ClientIdentity.class);
+            ChaincodeStub stub = mock(ChaincodeStub.class);
+            when(ctx.getStub()).thenReturn(stub);
+            when(ctx.getClientIdentity()).thenReturn(client);
+            when(client.getMSPID()).thenReturn("TestOrg");
+
+            Map<String, byte[]> transientMap = new HashMap<>();
+            when(stub.getTransient()).thenReturn(transientMap);
+
+            long studentIdInput = 0;
+            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
+            when(stub.getStringState(publicKey)).thenReturn("");
+
+            ClassRecord classRecord = new ClassRecord();
+            classRecord.setYear(2020);
+            long classIdInput = 0;
+            String classRecordSerialized = JsonUtil.serialize(classRecord);
+            String transientKey = "classRecord";
+            transientMap.put(transientKey, classRecordSerialized.getBytes(StandardCharsets.UTF_8));
+
+            Record record = Record.clone(null);
+            record.getClassRecords().put(classIdInput, classRecord);
+            String newRecordSerialized = JsonUtil.serialize(record);
+
+            contract.updateStudentClassRecord(ctx, studentIdInput, classIdInput);
+
             verify(stub).putStringState(publicKey, newRecordSerialized);
         }
     }

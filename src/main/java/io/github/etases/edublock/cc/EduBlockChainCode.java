@@ -71,6 +71,14 @@ public class EduBlockChainCode implements ContractInterface {
         stub.putPrivateData(getCollectionName(ctx), Long.toString(studentId), personalState.getBytes(StandardCharsets.UTF_8));
     }
 
+    private Record getStudentRecordOrNull(final Context ctx, final long studentId) {
+        ChaincodeStub stub = ctx.getStub();
+        String recordState = stub.getStringState(composePublicKey(ctx, Long.toString(studentId)));
+        if (recordState == null || recordState.isEmpty()) {
+            return null;
+        }
+        return JsonUtil.deserialize(recordState, Record.class);
+    }
 
     /**
      * Get student record by id
@@ -81,14 +89,13 @@ public class EduBlockChainCode implements ContractInterface {
      */
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public Record getStudentRecord(final Context ctx, final long studentId) {
-        ChaincodeStub stub = ctx.getStub();
-        String recordState = stub.getStringState(composePublicKey(ctx, Long.toString(studentId)));
-        if (recordState == null || recordState.isEmpty()) {
+        Record record = getStudentRecordOrNull(ctx, studentId);
+        if (record == null) {
             String errorMessage = String.format("Record %d does not exist", studentId);
             System.out.println(errorMessage);
             throw new ChaincodeException(errorMessage, AssetErrors.ASSET_NOT_FOUND.name());
         }
-        return JsonUtil.deserialize(recordState, Record.class);
+        return record;
     }
 
     /**
@@ -116,7 +123,7 @@ public class EduBlockChainCode implements ContractInterface {
     public void updateStudentClassRecord(final Context ctx, final long studentId, final long classId) {
         ChaincodeStub stub = ctx.getStub();
         ClassRecord record = getValueFromTransientMap(ctx, "classRecord", ClassRecord.class);
-        Record studentRecord = getStudentRecord(ctx, studentId);
+        Record studentRecord = getStudentRecordOrNull(ctx, studentId);
         Record newRecord = Record.clone(studentRecord);
         newRecord.getClassRecords().put(classId, record);
         String recordState = JsonUtil.serialize(newRecord);
