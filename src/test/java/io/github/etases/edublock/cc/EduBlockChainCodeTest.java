@@ -264,6 +264,7 @@ class EduBlockChainCodeTest {
             classRecordsMap.put(oldClassIdInput, oldClassRecord);
             record.setClassRecords(classRecordsMap);
             String recordSerialized = JsonUtil.serialize(record);
+
             long studentIdInput = 0;
             String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
             when(stub.getStringState(publicKey)).thenReturn(recordSerialized);
