@@ -52,7 +52,7 @@ public class EduBlockChainCode implements ContractInterface {
         if (personalState == null || personalState.isEmpty()) {
             String errorMessage = String.format("Personal %d does not exist", studentId);
             System.out.println(errorMessage);
-            throw new ChaincodeException(errorMessage, AssetErrors.ASSET_NOT_FOUND.name());
+            throw newChainException(AssetErrors.ASSET_NOT_FOUND, errorMessage);
         }
         return JsonUtil.deserialize(personalState, Personal.class);
     }
@@ -93,7 +93,7 @@ public class EduBlockChainCode implements ContractInterface {
         if (record == null) {
             String errorMessage = String.format("Record %d does not exist", studentId);
             System.out.println(errorMessage);
-            throw new ChaincodeException(errorMessage, AssetErrors.ASSET_NOT_FOUND.name());
+            throw newChainException(AssetErrors.ASSET_NOT_FOUND, errorMessage);
         }
         return record;
     }
@@ -152,6 +152,10 @@ public class EduBlockChainCode implements ContractInterface {
         return new RecordHistoryList(histories);
     }
 
+    ChaincodeException newChainException(AssetErrors error, String message) {
+        return new ChaincodeException(error.name() + ": " + message, error.name());
+    }
+
     String getCollectionName(Context ctx) {
         // TODO: specify collection config
         return "_implicit_org_" + ctx.getClientIdentity().getMSPID();
@@ -167,7 +171,7 @@ public class EduBlockChainCode implements ContractInterface {
         if (!transientMap.containsKey(transientKey)) {
             String errorMessage = "The transient map is missing \"" + transientKey + "\"";
             System.out.println(errorMessage);
-            throw new ChaincodeException(errorMessage, AssetErrors.ASSET_NOT_FOUND.name());
+            throw newChainException(AssetErrors.ASSET_NOT_FOUND, errorMessage);
         }
 
         String json = new String(transientMap.get(transientKey), StandardCharsets.UTF_8);
@@ -177,7 +181,7 @@ public class EduBlockChainCode implements ContractInterface {
         } catch (Exception exception) {
             String errorMessage = String.format("Invalid input: %s", json);
             System.out.println(errorMessage);
-            throw new ChaincodeException(errorMessage, AssetErrors.ASSET_INVALID.name());
+            throw newChainException(AssetErrors.ASSET_INVALID, errorMessage);
         }
         return t;
     }

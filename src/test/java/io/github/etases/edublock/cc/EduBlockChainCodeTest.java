@@ -162,6 +162,23 @@ class EduBlockChainCodeTest {
     }
 
     @Nested
+    class ChaincodeExceptionMessageTest {
+        @Test
+        void chaincodeExceptionMessage() {
+            ChaincodeException chaincodeException = new ChaincodeException("Test");
+            assertEquals("Test", chaincodeException.getMessage());
+        }
+
+        @Test
+        void chaincodeWithErrorCode() {
+            EduBlockChainCode contract = new EduBlockChainCode();
+            ChaincodeException chaincodeException = contract.newChainException(EduBlockChainCode.AssetErrors.ASSET_NOT_FOUND, "Test");
+            assertEquals("ASSET_NOT_FOUND: Test", chaincodeException.getMessage());
+            assertEquals(EduBlockChainCode.AssetErrors.ASSET_NOT_FOUND.name(), new String(chaincodeException.getPayload()));
+        }
+    }
+
+    @Nested
     class RecordTest {
         @Test
         void getStudentRecord() {
