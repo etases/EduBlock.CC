@@ -1,7 +1,7 @@
 package io.github.etases.edublock.cc;
 
-import io.github.etases.edublock.cc.model.*;
 import io.github.etases.edublock.cc.model.Record;
+import io.github.etases.edublock.cc.model.*;
 import io.github.etases.edublock.cc.util.JsonUtil;
 import org.assertj.core.api.ThrowableAssert;
 import org.hyperledger.fabric.contract.ClientIdentity;
@@ -10,6 +10,7 @@ import org.hyperledger.fabric.shim.ChaincodeException;
 import org.hyperledger.fabric.shim.ChaincodeStub;
 import org.hyperledger.fabric.shim.ledger.CompositeKey;
 import org.hyperledger.fabric.shim.ledger.KeyModification;
+import org.hyperledger.fabric.shim.ledger.KeyValue;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,92 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class EduBlockChainCodeTest {
+    private static class MockKeyValue implements KeyValue {
+        private final String key;
+        private final String value;
+
+        private MockKeyValue(String key, String value) {
+            this.key = key;
+            this.value = value;
+        }
+
+
+        @Override
+        public String getKey() {
+            return key;
+        }
+
+        @Override
+        public byte[] getValue() {
+            return value.getBytes(StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public String getStringValue() {
+            return value;
+        }
+    }
+
+    private static class MockKeyModification implements KeyModification {
+        private final String txId;
+        private final Instant timestamp;
+        private final String value;
+
+        private MockKeyModification(String txId, Instant timestamp, String value) {
+            this.txId = txId;
+            this.timestamp = timestamp;
+            this.value = value;
+        }
+
+        @Override
+        public String getTxId() {
+            return txId;
+        }
+
+        @Override
+        public byte[] getValue() {
+            return value.getBytes(StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public String getStringValue() {
+            return value;
+        }
+
+        @Override
+        public Instant getTimestamp() {
+            return timestamp;
+        }
+
+        @Override
+        public boolean isDeleted() {
+            return false;
+        }
+    }
+
+    private static class MockQueryResultsIterator<T> implements QueryResultsIterator<T> {
+        protected final List<T> results;
+
+        private MockQueryResultsIterator() {
+            results = new ArrayList<>();
+        }
+
+        private MockQueryResultsIterator(List<T> results) {
+            this.results = results;
+        }
+
+
+        @Override
+        public void close() throws Exception {
+            // do nothing
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+            return results.iterator();
+        }
+    }
+
     @Nested
     class TransientMapTest {
         @Test
@@ -356,77 +443,6 @@ class EduBlockChainCodeTest {
 
     @Nested
     class HistoryTest {
-        private final class MockKeyModification implements KeyModification {
-            private final String txId;
-            private final Instant timestamp;
-            private final String value;
-
-            private MockKeyModification(String txId, Instant timestamp, String value) {
-                this.txId = txId;
-                this.timestamp = timestamp;
-                this.value = value;
-            }
-
-            @Override
-            public String getTxId() {
-                return txId;
-            }
-
-            @Override
-            public byte[] getValue() {
-                return value.getBytes(StandardCharsets.UTF_8);
-            }
-
-            @Override
-            public String getStringValue() {
-                return value;
-            }
-
-            @Override
-            public Instant getTimestamp() {
-                return timestamp;
-            }
-
-            @Override
-            public boolean isDeleted() {
-                return false;
-            }
-        }
-
-        private final class MockKeyModificationResultsIterator implements QueryResultsIterator<KeyModification> {
-            private final List<KeyModification> list;
-
-            private MockKeyModificationResultsIterator(List<KeyModification> list) {
-                this.list = list;
-            }
-
-            private MockKeyModificationResultsIterator(Map<Instant, Record> recordMap) {
-                this.list = new ArrayList<>();
-                List<Map.Entry<Instant, Record>> entries = new ArrayList<>(recordMap.entrySet());
-                for (int i = 0; i < entries.size(); i++) {
-                    Map.Entry<Instant, Record> entry = entries.get(i);
-                    list.add(i, new MockKeyModification(Integer.toString(i), entry.getKey(), JsonUtil.serialize(entry.getValue())));
-                }
-            }
-
-            private MockKeyModificationResultsIterator(RecordHistoryList recordHistoryList) {
-                this.list = new ArrayList<>();
-                for (RecordHistory recordHistory : recordHistoryList.getHistories()) {
-                    list.add(new MockKeyModification(recordHistory.getUpdatedBy(), recordHistory.getTimestamp().toInstant(), JsonUtil.serialize(recordHistory.getRecord())));
-                }
-            }
-
-            @Override
-            public void close() {
-                // EMPTY
-            }
-
-            @Override
-            public Iterator<KeyModification> iterator() {
-                return list.iterator();
-            }
-        }
-
         @Test
         void getStudentRecordHistory() {
             EduBlockChainCode contract = new EduBlockChainCode();
@@ -456,7 +472,7 @@ class EduBlockChainCodeTest {
             recordHistories.add(new RecordHistory(Date.from(Instant.ofEpochMilli(1000000)), record2, "tx2"));
 
             RecordHistoryList recordHistoryList = new RecordHistoryList(recordHistories);
-            MockKeyModificationResultsIterator iterator = new MockKeyModificationResultsIterator(recordHistoryList);
+            MockRecordModificationResultsIterator iterator = new MockRecordModificationResultsIterator(recordHistoryList);
 
             long studentIdInput = 0;
             String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput)).toString();
@@ -482,12 +498,180 @@ class EduBlockChainCodeTest {
 
             long studentIdInput = 0;
             String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput)).toString();
-            when(stub.getHistoryForKey(publicKey)).thenReturn(new MockKeyModificationResultsIterator(Collections.emptyList()));
+            when(stub.getHistoryForKey(publicKey)).thenReturn(new MockRecordModificationResultsIterator(new RecordHistoryList(Collections.emptyList())));
 
             String output = contract.getStudentRecordHistory(ctx, studentIdInput);
             RecordHistoryList outputRecordHistoryList = JsonUtil.deserialize(output, RecordHistoryList.class);
 
             assertTrue(outputRecordHistoryList.getHistories().isEmpty());
+        }
+
+        private final class MockRecordModificationResultsIterator extends MockQueryResultsIterator<KeyModification> {
+            private MockRecordModificationResultsIterator(Map<Instant, Record> recordMap) {
+                List<Map.Entry<Instant, Record>> entries = new ArrayList<>(recordMap.entrySet());
+                for (int i = 0; i < entries.size(); i++) {
+                    Map.Entry<Instant, Record> entry = entries.get(i);
+                    results.add(i, new MockKeyModification(Integer.toString(i), entry.getKey(), JsonUtil.serialize(entry.getValue())));
+                }
+            }
+
+            private MockRecordModificationResultsIterator(RecordHistoryList recordHistoryList) {
+                for (RecordHistory recordHistory : recordHistoryList.getHistories()) {
+                    results.add(new MockKeyModification(recordHistory.getUpdatedBy(), recordHistory.getTimestamp().toInstant(), JsonUtil.serialize(recordHistory.getRecord())));
+                }
+            }
+        }
+    }
+
+    @Nested
+    class AllPersonalTest {
+        @Test
+        void getAllStudentPersonals() {
+            EduBlockChainCode contract = new EduBlockChainCode();
+            Context ctx = mock(Context.class);
+            ClientIdentity client = mock(ClientIdentity.class);
+            ChaincodeStub stub = mock(ChaincodeStub.class);
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(ctx.getStub()).thenReturn(stub);
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
+            when(ctx.getClientIdentity()).thenReturn(client);
+            when(client.getMSPID()).thenReturn("TestOrg");
+
+            PersonalMap personalMap = new PersonalMap(new HashMap<>());
+            Personal personal1 = new Personal();
+            personal1.setFirstName("Test1");
+            personalMap.getPersonals().put(0L, personal1);
+            Personal personal2 = new Personal();
+            personal2.setFirstName("Test2");
+            personalMap.getPersonals().put(1L, personal2);
+            QueryResultsIterator<KeyValue> iterator = new MockPersonalMapIterator(personalMap);
+
+            String collectionName = contract.getCollectionName(ctx);
+            when(stub.getPrivateDataByRange(collectionName, "", "")).thenReturn(iterator);
+
+            String output = contract.getAllStudentPersonals(ctx);
+            PersonalMap outputPersonalMap = JsonUtil.deserialize(output, PersonalMap.class);
+
+            assertEquals(personalMap, outputPersonalMap);
+        }
+
+        @Test
+        void getAllStudentPersonalsEmpty() {
+            EduBlockChainCode contract = new EduBlockChainCode();
+            Context ctx = mock(Context.class);
+            ClientIdentity client = mock(ClientIdentity.class);
+            ChaincodeStub stub = mock(ChaincodeStub.class);
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(ctx.getStub()).thenReturn(stub);
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
+            when(ctx.getClientIdentity()).thenReturn(client);
+            when(client.getMSPID()).thenReturn("TestOrg");
+
+            String collectionName = contract.getCollectionName(ctx);
+            when(stub.getPrivateDataByRange(collectionName, "", "")).thenReturn(new MockPersonalMapIterator(new PersonalMap(new HashMap<>())));
+
+            String output = contract.getAllStudentPersonals(ctx);
+            PersonalMap outputPersonalMap = JsonUtil.deserialize(output, PersonalMap.class);
+
+            assertTrue(outputPersonalMap.getPersonals().isEmpty());
+        }
+
+        private final class MockPersonalMapIterator extends MockQueryResultsIterator<KeyValue> {
+            private MockPersonalMapIterator(PersonalMap personalMap) {
+                for (Map.Entry<Long, Personal> entry : personalMap.getPersonals().entrySet()) {
+                    results.add(new MockKeyValue(Long.toString(entry.getKey()), JsonUtil.serialize(entry.getValue())));
+                }
+            }
+        }
+    }
+
+    @Nested
+    class AllRecordTest {
+        @Test
+        void getAllStudentRecords() {
+            String mspId = "TestOrg";
+            String recordPrefix = "record";
+
+            EduBlockChainCode contract = new EduBlockChainCode();
+            Context ctx = mock(Context.class);
+            ClientIdentity client = mock(ClientIdentity.class);
+            ChaincodeStub stub = mock(ChaincodeStub.class);
+            when(ctx.getStub()).thenReturn(stub);
+            when(ctx.getClientIdentity()).thenReturn(client);
+            when(client.getMSPID()).thenReturn(mspId);
+
+            CompositeKey prefixKey = new CompositeKey(recordPrefix, mspId);
+            when(stub.createCompositeKey(recordPrefix, mspId)).thenReturn(prefixKey);
+
+            RecordMap recordMap = new RecordMap(new HashMap<>());
+
+            Record record1 = new Record();
+            Map<Long, ClassRecord> classRecords1 = new HashMap<>();
+            ClassRecord classRecord1 = new ClassRecord();
+            classRecord1.setGrade(1);
+            classRecords1.put(0L, classRecord1);
+            record1.setClassRecords(classRecords1);
+            recordMap.getRecords().put(1L, record1);
+
+            CompositeKey recordKey1 = new CompositeKey(recordPrefix, mspId, Long.toString(1L));
+            when(stub.createCompositeKey(recordPrefix, mspId, Long.toString(1L))).thenReturn(recordKey1);
+            when(stub.splitCompositeKey(recordKey1.toString())).thenReturn(recordKey1);
+
+            Record record2 = new Record();
+            Map<Long, ClassRecord> classRecords2 = new HashMap<>();
+            ClassRecord classRecord2 = new ClassRecord();
+            classRecord2.setGrade(2);
+            classRecords2.put(1L, classRecord2);
+            record2.setClassRecords(classRecords2);
+            recordMap.getRecords().put(2L, record2);
+
+            CompositeKey recordKey2 = new CompositeKey(recordPrefix, mspId, Long.toString(2L));
+            when(stub.createCompositeKey(recordPrefix, mspId, Long.toString(2L))).thenReturn(recordKey2);
+            when(stub.splitCompositeKey(recordKey2.toString())).thenReturn(recordKey2);
+
+            Map<String, Record> map = new HashMap<>();
+            map.put(recordKey1.toString(), record1);
+            map.put(recordKey2.toString(), record2);
+            QueryResultsIterator<KeyValue> iterator = new MockRecordMapIterator(map);
+
+            when(stub.getStateByPartialCompositeKey(prefixKey)).thenReturn(iterator);
+
+            String output = contract.getAllStudentRecords(ctx);
+            RecordMap outputRecordMap = JsonUtil.deserialize(output, RecordMap.class);
+
+            assertEquals(recordMap, outputRecordMap);
+        }
+
+        @Test
+        void getAllStudentRecordsEmpty() {
+            String mspId = "TestOrg";
+            String recordPrefix = "record";
+
+            EduBlockChainCode contract = new EduBlockChainCode();
+            Context ctx = mock(Context.class);
+            ClientIdentity client = mock(ClientIdentity.class);
+            ChaincodeStub stub = mock(ChaincodeStub.class);
+            when(ctx.getStub()).thenReturn(stub);
+            when(ctx.getClientIdentity()).thenReturn(client);
+            when(client.getMSPID()).thenReturn(mspId);
+
+            CompositeKey prefixKey = new CompositeKey(recordPrefix, mspId);
+            when(stub.createCompositeKey(recordPrefix, mspId)).thenReturn(prefixKey);
+
+            when(stub.getStateByPartialCompositeKey(prefixKey)).thenReturn(new MockRecordMapIterator(new HashMap<>()));
+
+            String output = contract.getAllStudentRecords(ctx);
+            RecordMap outputRecordMap = JsonUtil.deserialize(output, RecordMap.class);
+
+            assertTrue(outputRecordMap.getRecords().isEmpty());
+        }
+
+        private final class MockRecordMapIterator extends MockQueryResultsIterator<KeyValue> {
+            private MockRecordMapIterator(Map<String, Record> map) {
+                for (Map.Entry<String, Record> entry : map.entrySet()) {
+                    results.add(new MockKeyValue(entry.getKey(), JsonUtil.serialize(entry.getValue())));
+                }
+            }
         }
     }
 }
