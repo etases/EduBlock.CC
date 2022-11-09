@@ -202,7 +202,8 @@ class EduBlockChainCodeTest {
             long studentIdInput = 0;
             when(stub.getStringState(contract.composePublicKey(ctx, Long.toString(studentIdInput)))).thenReturn(recordSerialized);
 
-            Record recordOutput = contract.getStudentRecord(ctx, studentIdInput);
+            String output = contract.getStudentRecord(ctx, studentIdInput);
+            Record recordOutput = JsonUtil.deserialize(output, Record.class);
 
             assertEquals(record, recordOutput);
         }
@@ -440,9 +441,10 @@ class EduBlockChainCodeTest {
             String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
             when(stub.getHistoryForKey(publicKey)).thenReturn(iterator);
 
-            RecordHistoryList recordHistoryListOutput = contract.getStudentRecordHistory(ctx, studentIdInput);
+            String output = contract.getStudentRecordHistory(ctx, studentIdInput);
+            RecordHistoryList outputRecordHistoryList = JsonUtil.deserialize(output, RecordHistoryList.class);
 
-            assertEquals(recordHistoryList, recordHistoryListOutput);
+            assertEquals(recordHistoryList, outputRecordHistoryList);
         }
 
         @Test
@@ -459,9 +461,10 @@ class EduBlockChainCodeTest {
             String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
             when(stub.getHistoryForKey(publicKey)).thenReturn(new MockKeyModificationResultsIterator(Collections.emptyList()));
 
-            RecordHistoryList recordHistoryListOutput = contract.getStudentRecordHistory(ctx, studentIdInput);
+            String output = contract.getStudentRecordHistory(ctx, studentIdInput);
+            RecordHistoryList outputRecordHistoryList = JsonUtil.deserialize(output, RecordHistoryList.class);
 
-            assertTrue(recordHistoryListOutput.getHistories().isEmpty());
+            assertTrue(outputRecordHistoryList.getHistories().isEmpty());
         }
     }
 }

@@ -88,14 +88,14 @@ public class EduBlockChainCode implements ContractInterface {
      * @return student record or exception if not found
      */
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public Record getStudentRecord(final Context ctx, final long studentId) {
+    public String getStudentRecord(final Context ctx, final long studentId) {
         Record record = getStudentRecordOrNull(ctx, studentId);
         if (record == null) {
             String errorMessage = String.format("Record %d does not exist", studentId);
             System.out.println(errorMessage);
             throw newChainException(AssetErrors.ASSET_NOT_FOUND, errorMessage);
         }
-        return record;
+        return JsonUtil.serialize(record);
     }
 
     /**
@@ -138,7 +138,7 @@ public class EduBlockChainCode implements ContractInterface {
      * @return the history of student record
      */
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public RecordHistoryList getStudentRecordHistory(final Context ctx, final long studentId) {
+    public String getStudentRecordHistory(final Context ctx, final long studentId) {
         ChaincodeStub stub = ctx.getStub();
         QueryResultsIterator<KeyModification> iterator = stub.getHistoryForKey(composePublicKey(ctx, Long.toString(studentId)));
         List<RecordHistory> histories = new ArrayList<>();
@@ -149,7 +149,7 @@ public class EduBlockChainCode implements ContractInterface {
             history.setUpdatedBy(keyModification.getTxId());
             histories.add(history);
         }
-        return new RecordHistoryList(histories);
+        return JsonUtil.serialize(new RecordHistoryList(histories));
     }
 
     ChaincodeException newChainException(AssetErrors error, String message) {
