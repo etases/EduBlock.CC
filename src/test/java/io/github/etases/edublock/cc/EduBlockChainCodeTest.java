@@ -8,6 +8,7 @@ import org.hyperledger.fabric.contract.ClientIdentity;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.shim.ChaincodeException;
 import org.hyperledger.fabric.shim.ChaincodeStub;
+import org.hyperledger.fabric.shim.ledger.CompositeKey;
 import org.hyperledger.fabric.shim.ledger.KeyModification;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 import org.junit.jupiter.api.Nested;
@@ -186,7 +187,10 @@ class EduBlockChainCodeTest {
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(compositeKey.toString()).thenReturn("TestCK");
             when(ctx.getStub()).thenReturn(stub);
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn("TestOrg");
 
@@ -200,7 +204,7 @@ class EduBlockChainCodeTest {
             record.setClassRecords(classRecordsMap);
             String recordSerialized = JsonUtil.serialize(record);
             long studentIdInput = 0;
-            when(stub.getStringState(contract.composePublicKey(ctx, Long.toString(studentIdInput)))).thenReturn(recordSerialized);
+            when(stub.getStringState(contract.composePublicKey(ctx, Long.toString(studentIdInput)).toString())).thenReturn(recordSerialized);
 
             String output = contract.getStudentRecord(ctx, studentIdInput);
             Record recordOutput = JsonUtil.deserialize(output, Record.class);
@@ -214,13 +218,16 @@ class EduBlockChainCodeTest {
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(compositeKey.toString()).thenReturn("TestCK");
             when(ctx.getStub()).thenReturn(stub);
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn("TestOrg");
 
             long studentIdInput = 0;
 
-            when(stub.getStringState(contract.composePublicKey(ctx, Long.toString(studentIdInput)))).thenReturn(null);
+            when(stub.getStringState(contract.composePublicKey(ctx, Long.toString(studentIdInput)).toString())).thenReturn(null);
             ChaincodeException chaincodeException = ThrowableAssert.catchThrowableOfType(() -> {
                 contract.getStudentRecord(ctx, studentIdInput);
             }, ChaincodeException.class);
@@ -235,9 +242,14 @@ class EduBlockChainCodeTest {
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(compositeKey.toString()).thenReturn("TestCK");
             when(ctx.getStub()).thenReturn(stub);
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn("TestOrg");
+
+            String publicKey = contract.composePublicKey(ctx, Long.toString(0)).toString();
 
             Map<String, byte[]> transientMap = new HashMap<>();
             when(stub.getTransient()).thenReturn(transientMap);
@@ -257,7 +269,7 @@ class EduBlockChainCodeTest {
             long studentIdInput = 0;
             contract.updateStudentRecord(ctx, studentIdInput);
 
-            verify(stub).putStringState(contract.composePublicKey(ctx, Long.toString(studentIdInput)), recordSerialized);
+            verify(stub).putStringState(publicKey, recordSerialized);
         }
 
         @Test
@@ -266,7 +278,10 @@ class EduBlockChainCodeTest {
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(compositeKey.toString()).thenReturn("TestCK");
             when(ctx.getStub()).thenReturn(stub);
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn("TestOrg");
 
@@ -283,7 +298,7 @@ class EduBlockChainCodeTest {
             String recordSerialized = JsonUtil.serialize(record);
 
             long studentIdInput = 0;
-            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
+            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput)).toString();
             when(stub.getStringState(publicKey)).thenReturn(recordSerialized);
 
             ClassRecord newClassRecord = new ClassRecord();
@@ -308,7 +323,10 @@ class EduBlockChainCodeTest {
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(compositeKey.toString()).thenReturn("TestCK");
             when(ctx.getStub()).thenReturn(stub);
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn("TestOrg");
 
@@ -316,7 +334,7 @@ class EduBlockChainCodeTest {
             when(stub.getTransient()).thenReturn(transientMap);
 
             long studentIdInput = 0;
-            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
+            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput)).toString();
             when(stub.getStringState(publicKey)).thenReturn("");
 
             ClassRecord classRecord = new ClassRecord();
@@ -415,7 +433,10 @@ class EduBlockChainCodeTest {
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(compositeKey.toString()).thenReturn("TestCK");
             when(ctx.getStub()).thenReturn(stub);
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn("TestOrg");
 
@@ -438,7 +459,7 @@ class EduBlockChainCodeTest {
             MockKeyModificationResultsIterator iterator = new MockKeyModificationResultsIterator(recordHistoryList);
 
             long studentIdInput = 0;
-            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
+            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput)).toString();
             when(stub.getHistoryForKey(publicKey)).thenReturn(iterator);
 
             String output = contract.getStudentRecordHistory(ctx, studentIdInput);
@@ -453,12 +474,14 @@ class EduBlockChainCodeTest {
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
+            CompositeKey compositeKey = mock(CompositeKey.class);
             when(ctx.getStub()).thenReturn(stub);
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn("TestOrg");
 
             long studentIdInput = 0;
-            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput));
+            String publicKey = contract.composePublicKey(ctx, Long.toString(studentIdInput)).toString();
             when(stub.getHistoryForKey(publicKey)).thenReturn(new MockKeyModificationResultsIterator(Collections.emptyList()));
 
             String output = contract.getStudentRecordHistory(ctx, studentIdInput);
