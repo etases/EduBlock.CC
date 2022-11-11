@@ -200,7 +200,14 @@ public class EduBlockChainCode implements ContractInterface {
     }
 
     String getCollectionName(Context ctx) {
-        // TODO: specify collection config
+        Map<String, byte[]> transientMap = ctx.getStub().getTransient();
+        byte[] collectionNameBytes = transientMap.get("collectionName");
+        if (collectionNameBytes != null) {
+            String collectionName = new String(collectionNameBytes, StandardCharsets.UTF_8);
+            if (!collectionName.isEmpty()) {
+                return collectionName;
+            }
+        }
         return "_implicit_org_" + ctx.getClientIdentity().getMSPID();
     }
 
