@@ -181,6 +181,9 @@ class EduBlockChainCodeTest {
             when(ctx.getStub()).thenReturn(stub);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn("TestOrg");
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(compositeKey.toString()).thenReturn("TestCK");
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
 
             long studentIdInput = 0;
             Personal personal = new Personal();
@@ -189,7 +192,7 @@ class EduBlockChainCodeTest {
             personal.setMale(false);
             String collectionName = contract.getCollectionName(ctx);
             String personalSerialized = JsonUtil.serialize(personal);
-            when(stub.getPrivateDataUTF8(collectionName, Long.toString(studentIdInput))).thenReturn(personalSerialized);
+            when(stub.getPrivateDataUTF8(collectionName, compositeKey.toString())).thenReturn(personalSerialized);
 
             Personal personalOutput = contract.getStudentPersonal(ctx, studentIdInput);
 
@@ -205,11 +208,14 @@ class EduBlockChainCodeTest {
             when(ctx.getStub()).thenReturn(stub);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn("TestOrg");
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(compositeKey.toString()).thenReturn("TestCK");
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
 
             long studentIdInput = 0;
             String collectionName = contract.getCollectionName(ctx);
 
-            when(stub.getPrivateDataUTF8(collectionName, Long.toString(studentIdInput))).thenReturn(null);
+            when(stub.getPrivateDataUTF8(collectionName, compositeKey.toString())).thenReturn(null);
             ChaincodeException chaincodeException = ThrowableAssert.catchThrowableOfType(() -> {
                 contract.getStudentPersonal(ctx, studentIdInput);
             }, ChaincodeException.class);
@@ -227,7 +233,9 @@ class EduBlockChainCodeTest {
             when(ctx.getStub()).thenReturn(stub);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn("TestOrg");
-
+            CompositeKey compositeKey = mock(CompositeKey.class);
+            when(compositeKey.toString()).thenReturn("TestCK");
+            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
 
             Map<String, byte[]> transientMap = new HashMap<>();
             when(stub.getTransient()).thenReturn(transientMap);
@@ -245,7 +253,7 @@ class EduBlockChainCodeTest {
 
             contract.updateStudentPersonal(ctx, studentIdInput);
 
-            verify(stub).putPrivateData(collectionName, Long.toString(studentIdInput), personalSerialized.getBytes(StandardCharsets.UTF_8));
+            verify(stub).putPrivateData(collectionName, compositeKey.toString(), personalSerialized.getBytes(StandardCharsets.UTF_8));
         }
     }
 
@@ -527,27 +535,40 @@ class EduBlockChainCodeTest {
     class AllPersonalTest {
         @Test
         void getAllStudentPersonals() {
+            String mspId = "TestOrg";
+            String clientId = "TestClient";
+            String personalPrefix = "personal";
+
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
-            CompositeKey compositeKey = mock(CompositeKey.class);
             when(ctx.getStub()).thenReturn(stub);
-            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
             when(ctx.getClientIdentity()).thenReturn(client);
-            when(client.getMSPID()).thenReturn("TestOrg");
+            when(client.getMSPID()).thenReturn(mspId);
+            when(client.getId()).thenReturn(clientId);
+
+            CompositeKey prefixKey = new CompositeKey(personalPrefix, mspId, clientId);
+            when(stub.createCompositeKey(personalPrefix, mspId, clientId)).thenReturn(prefixKey);
 
             PersonalMap personalMap = new PersonalMap(new HashMap<>());
+
             Personal personal1 = new Personal();
             personal1.setFirstName("Test1");
             personalMap.getPersonals().put(0L, personal1);
+            CompositeKey personalKey1 = new CompositeKey(personalPrefix, mspId, clientId, "0");
+            when(stub.splitCompositeKey(personalKey1.toString())).thenReturn(personalKey1);
+
             Personal personal2 = new Personal();
             personal2.setFirstName("Test2");
             personalMap.getPersonals().put(1L, personal2);
-            QueryResultsIterator<KeyValue> iterator = new MockPersonalMapIterator(personalMap);
+            CompositeKey personalKey2 = new CompositeKey(personalPrefix, mspId, clientId, "1");
+            when(stub.splitCompositeKey(personalKey2.toString())).thenReturn(personalKey2);
+
+            QueryResultsIterator<KeyValue> iterator = new MockPersonalMapIterator(personalPrefix, mspId, clientId, personalMap);
 
             String collectionName = contract.getCollectionName(ctx);
-            when(stub.getPrivateDataByRange(collectionName, "", "")).thenReturn(iterator);
+            when(stub.getPrivateDataByPartialCompositeKey(collectionName, prefixKey)).thenReturn(iterator);
 
             String output = contract.getAllStudentPersonals(ctx);
             PersonalMap outputPersonalMap = JsonUtil.deserialize(output, PersonalMap.class);
@@ -557,18 +578,24 @@ class EduBlockChainCodeTest {
 
         @Test
         void getAllStudentPersonalsEmpty() {
+            String mspId = "TestOrg";
+            String clientId = "TestClient";
+            String personalPrefix = "personal";
+
             EduBlockChainCode contract = new EduBlockChainCode();
             Context ctx = mock(Context.class);
             ClientIdentity client = mock(ClientIdentity.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
-            CompositeKey compositeKey = mock(CompositeKey.class);
             when(ctx.getStub()).thenReturn(stub);
-            when(stub.createCompositeKey(anyString(), any())).thenReturn(compositeKey);
             when(ctx.getClientIdentity()).thenReturn(client);
-            when(client.getMSPID()).thenReturn("TestOrg");
+            when(client.getMSPID()).thenReturn(mspId);
+            when(client.getId()).thenReturn(clientId);
+
+            CompositeKey prefixKey = new CompositeKey(personalPrefix, mspId, clientId);
+            when(stub.createCompositeKey(personalPrefix, mspId, clientId)).thenReturn(prefixKey);
 
             String collectionName = contract.getCollectionName(ctx);
-            when(stub.getPrivateDataByRange(collectionName, "", "")).thenReturn(new MockPersonalMapIterator(new PersonalMap(new HashMap<>())));
+            when(stub.getPrivateDataByPartialCompositeKey(collectionName, prefixKey)).thenReturn(new MockPersonalMapIterator(personalPrefix, mspId, clientId, new PersonalMap(new HashMap<>())));
 
             String output = contract.getAllStudentPersonals(ctx);
             PersonalMap outputPersonalMap = JsonUtil.deserialize(output, PersonalMap.class);
@@ -577,9 +604,10 @@ class EduBlockChainCodeTest {
         }
 
         private final class MockPersonalMapIterator extends MockQueryResultsIterator<KeyValue> {
-            private MockPersonalMapIterator(PersonalMap personalMap) {
+            private MockPersonalMapIterator(String prefix, String mspId, String clientId, PersonalMap personalMap) {
                 for (Map.Entry<Long, Personal> entry : personalMap.getPersonals().entrySet()) {
-                    results.add(new MockKeyValue(Long.toString(entry.getKey()), JsonUtil.serialize(entry.getValue())));
+                    CompositeKey compositeKey = new CompositeKey(prefix, mspId, clientId, entry.getKey().toString());
+                    results.add(new MockKeyValue(compositeKey.toString(), JsonUtil.serialize(entry.getValue())));
                 }
             }
         }
@@ -590,6 +618,7 @@ class EduBlockChainCodeTest {
         @Test
         void getAllStudentRecords() {
             String mspId = "TestOrg";
+            String clientId = "TestClient";
             String recordPrefix = "record";
 
             EduBlockChainCode contract = new EduBlockChainCode();
@@ -599,9 +628,10 @@ class EduBlockChainCodeTest {
             when(ctx.getStub()).thenReturn(stub);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn(mspId);
+            when(client.getId()).thenReturn(clientId);
 
-            CompositeKey prefixKey = new CompositeKey(recordPrefix, mspId);
-            when(stub.createCompositeKey(recordPrefix, mspId)).thenReturn(prefixKey);
+            CompositeKey prefixKey = new CompositeKey(recordPrefix, mspId, clientId);
+            when(stub.createCompositeKey(recordPrefix, mspId, clientId)).thenReturn(prefixKey);
 
             RecordMap recordMap = new RecordMap(new HashMap<>());
 
@@ -613,8 +643,8 @@ class EduBlockChainCodeTest {
             record1.setClassRecords(classRecords1);
             recordMap.getRecords().put(1L, record1);
 
-            CompositeKey recordKey1 = new CompositeKey(recordPrefix, mspId, Long.toString(1L));
-            when(stub.createCompositeKey(recordPrefix, mspId, Long.toString(1L))).thenReturn(recordKey1);
+            CompositeKey recordKey1 = new CompositeKey(recordPrefix, mspId, clientId, Long.toString(1L));
+            when(stub.createCompositeKey(recordPrefix, mspId, clientId, Long.toString(1L))).thenReturn(recordKey1);
             when(stub.splitCompositeKey(recordKey1.toString())).thenReturn(recordKey1);
 
             Record record2 = new Record();
@@ -625,8 +655,8 @@ class EduBlockChainCodeTest {
             record2.setClassRecords(classRecords2);
             recordMap.getRecords().put(2L, record2);
 
-            CompositeKey recordKey2 = new CompositeKey(recordPrefix, mspId, Long.toString(2L));
-            when(stub.createCompositeKey(recordPrefix, mspId, Long.toString(2L))).thenReturn(recordKey2);
+            CompositeKey recordKey2 = new CompositeKey(recordPrefix, mspId, clientId, Long.toString(2L));
+            when(stub.createCompositeKey(recordPrefix, mspId, clientId, Long.toString(2L))).thenReturn(recordKey2);
             when(stub.splitCompositeKey(recordKey2.toString())).thenReturn(recordKey2);
 
             Map<String, Record> map = new HashMap<>();
@@ -645,6 +675,7 @@ class EduBlockChainCodeTest {
         @Test
         void getAllStudentRecordsEmpty() {
             String mspId = "TestOrg";
+            String clientId = "TestClient";
             String recordPrefix = "record";
 
             EduBlockChainCode contract = new EduBlockChainCode();
@@ -654,9 +685,10 @@ class EduBlockChainCodeTest {
             when(ctx.getStub()).thenReturn(stub);
             when(ctx.getClientIdentity()).thenReturn(client);
             when(client.getMSPID()).thenReturn(mspId);
+            when(client.getId()).thenReturn(clientId);
 
-            CompositeKey prefixKey = new CompositeKey(recordPrefix, mspId);
-            when(stub.createCompositeKey(recordPrefix, mspId)).thenReturn(prefixKey);
+            CompositeKey prefixKey = new CompositeKey(recordPrefix, mspId, clientId);
+            when(stub.createCompositeKey(recordPrefix, mspId, clientId)).thenReturn(prefixKey);
 
             when(stub.getStateByPartialCompositeKey(prefixKey)).thenReturn(new MockRecordMapIterator(new HashMap<>()));
 

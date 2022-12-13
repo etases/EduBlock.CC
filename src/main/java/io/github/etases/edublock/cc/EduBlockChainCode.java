@@ -3,6 +3,7 @@ package io.github.etases.edublock.cc;
 import io.github.etases.edublock.cc.model.Record;
 import io.github.etases.edublock.cc.model.*;
 import io.github.etases.edublock.cc.util.JsonUtil;
+import org.hyperledger.fabric.Logger;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.Contract;
@@ -26,7 +27,9 @@ import java.util.*;
         ))
 @Default
 public class EduBlockChainCode implements ContractInterface {
+    private static final Logger logger = Logger.getLogger(EduBlockChainCode.class);
     private static final String RECORD_PREFIX = "record";
+    private static final String PERSONAL_PREFIX = "personal";
 
     /**
      * Init the ledger
@@ -49,10 +52,11 @@ public class EduBlockChainCode implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public Personal getStudentPersonal(final Context ctx, final long studentId) {
         ChaincodeStub stub = ctx.getStub();
-        String personalState = stub.getPrivateDataUTF8(getCollectionName(ctx), Long.toString(studentId));
+        String personalKey = composePublicKey(ctx, PERSONAL_PREFIX, Long.toString(studentId)).toString();
+        String personalState = stub.getPrivateDataUTF8(getCollectionName(ctx), personalKey);
         if (personalState == null || personalState.isEmpty()) {
             String errorMessage = String.format("Personal %d does not exist", studentId);
-            System.out.println(errorMessage);
+            logger.error(errorMessage);
             throw newChainException(AssetErrors.ASSET_NOT_FOUND, errorMessage);
         }
         return JsonUtil.deserialize(personalState, Personal.class);
@@ -67,10 +71,15 @@ public class EduBlockChainCode implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public String getAllStudentPersonals(final Context ctx) {
         ChaincodeStub stub = ctx.getStub();
-        QueryResultsIterator<KeyValue> personalState = stub.getPrivateDataByRange(getCollectionName(ctx), "", "");
+        CompositeKey prefixKey = composePrefixKey(ctx, PERSONAL_PREFIX);
+        QueryResultsIterator<KeyValue> personalState = stub.getPrivateDataByPartialCompositeKey(getCollectionName(ctx), prefixKey);
         Map<Long, Personal> personals = new HashMap<>();
         for (KeyValue kv : personalState) {
-            long studentId = Long.parseLong(kv.getKey());
+            List<String> attributes = verifyAndGetAttributes(ctx, kv.getKey(), PERSONAL_PREFIX);
+            if (attributes.size() != 1) {
+                throw newChainException(AssetErrors.ASSET_NOT_FOUND, "Invalid key");
+            }
+            long studentId = Long.parseLong(attributes.get(0));
             Personal personal = JsonUtil.deserialize(kv.getStringValue(), Personal.class);
             personals.put(studentId, personal);
         }
@@ -88,7 +97,8 @@ public class EduBlockChainCode implements ContractInterface {
         ChaincodeStub stub = ctx.getStub();
         Personal personal = getValueFromTransientMap(ctx, "personal", Personal.class);
         String personalState = JsonUtil.serialize(personal);
-        stub.putPrivateData(getCollectionName(ctx), Long.toString(studentId), personalState.getBytes(StandardCharsets.UTF_8));
+        String personalKey = composePublicKey(ctx, PERSONAL_PREFIX, Long.toString(studentId)).toString();
+        stub.putPrivateData(getCollectionName(ctx), personalKey, personalState.getBytes(StandardCharsets.UTF_8));
     }
 
     private Record getStudentRecordOrNull(final Context ctx, final long studentId) {
@@ -112,7 +122,7 @@ public class EduBlockChainCode implements ContractInterface {
         Record record = getStudentRecordOrNull(ctx, studentId);
         if (record == null) {
             String errorMessage = String.format("Record %d does not exist", studentId);
-            System.out.println(errorMessage);
+            logger.error(errorMessage);
             throw newChainException(AssetErrors.ASSET_NOT_FOUND, errorMessage);
         }
         return JsonUtil.serialize(record);
@@ -212,14 +222,15 @@ public class EduBlockChainCode implements ContractInterface {
     }
 
     CompositeKey composePublicKey(Context ctx, String type, String... key) {
-        String[] combined = new String[key.length + 1];
+        String[] combined = new String[key.length + 2];
         combined[0] = ctx.getClientIdentity().getMSPID();
-        System.arraycopy(key, 0, combined, 1, key.length);
+        combined[1] = ctx.getClientIdentity().getId();
+        System.arraycopy(key, 0, combined, 2, key.length);
         return ctx.getStub().createCompositeKey(type, combined);
     }
 
     CompositeKey composePrefixKey(Context ctx, String type) {
-        return ctx.getStub().createCompositeKey(type, ctx.getClientIdentity().getMSPID());
+        return ctx.getStub().createCompositeKey(type, ctx.getClientIdentity().getMSPID(), ctx.getClientIdentity().getId());
     }
 
     List<String> verifyAndGetAttributes(Context ctx, String key, String type) {
@@ -228,13 +239,16 @@ public class EduBlockChainCode implements ContractInterface {
             throw newChainException(AssetErrors.ASSET_INVALID, "Invalid composite key type");
         }
         List<String> attributes = compositeKey.getAttributes();
-        if (attributes.isEmpty()) {
+        if (attributes.size() < 2) {
             throw newChainException(AssetErrors.ASSET_INVALID, "Invalid composite key");
         }
         if (!attributes.get(0).equals(ctx.getClientIdentity().getMSPID())) {
             throw newChainException(AssetErrors.ASSET_INVALID, "Invalid composite key");
         }
-        return attributes.subList(1, attributes.size());
+        if (!attributes.get(1).equals(ctx.getClientIdentity().getId())) {
+            throw newChainException(AssetErrors.ASSET_INVALID, "Invalid composite key");
+        }
+        return attributes.subList(2, attributes.size());
     }
 
     <T> T getValueFromTransientMap(final Context ctx, String transientKey, Class<T> clazz) {
@@ -242,7 +256,7 @@ public class EduBlockChainCode implements ContractInterface {
         Map<String, byte[]> transientMap = stub.getTransient();
         if (!transientMap.containsKey(transientKey)) {
             String errorMessage = "The transient map is missing \"" + transientKey + "\"";
-            System.out.println(errorMessage);
+            logger.error(errorMessage);
             throw newChainException(AssetErrors.ASSET_NOT_FOUND, errorMessage);
         }
 
@@ -252,7 +266,7 @@ public class EduBlockChainCode implements ContractInterface {
             t = JsonUtil.deserialize(json, clazz);
         } catch (Exception exception) {
             String errorMessage = String.format("Invalid input: %s", json);
-            System.out.println(errorMessage);
+            logger.error(errorMessage);
             throw newChainException(AssetErrors.ASSET_INVALID, errorMessage);
         }
         return t;
